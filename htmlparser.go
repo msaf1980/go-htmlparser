@@ -207,12 +207,8 @@ func (p *HtmlParser) tagEndl(last *int, len int) (bool, string) {
 					}
 				}
 				spaces = p.OrigHtml[*last:n]
-			} else {
-				spaces = p.OrigHtml[*last:i]
+				*last = n
 			}
-			// if !hasContent(p.OrigHtml[*last:n]) {
-			// 	spaces = p.OrigHtml[*last:n]
-			// }
 		}
 		return true, spaces
 	}

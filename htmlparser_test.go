@@ -371,9 +371,41 @@ func Test_NewLineEndlinePreserve(t *testing.T) {
 }
 
 func Test_NewLineEndlineSpace(t *testing.T) {
-	html1 := "<html>\n <head>\n </head>\n</html>"
+	html1 := "<html>\n <head>\n   \n<title>Test</title>\n </head>\n</html>"
 	html2 := parseAndSerializeEndline(html1, true)
-	html1 = "<html>\\n <head>\\n </head>\\n</html>"
+	html1 = "<html>\\n <head>\\n<title>Test</title>\\n </head>\\n</html>"
+	html2 = strings.ReplaceAll(html2, "\n", "\\n")
+	if html1 != html2 {
+
+		max := len(html1)
+		if max > len(html2) {
+			max = len(html2)
+		}
+		for i := 0; i < max; i++ {
+			if html1[i] != html2[i] {
+				i -= 20
+				if i < 0 {
+					i = 0
+				}
+				e := i + 30
+				if e > max {
+					e = max
+				}
+				t.Logf("Mismatch1: %v\n", html1[i:e])
+				t.Logf("Mismatch2: %v\n", html2[i:e])
+				break
+			}
+		}
+
+		t.Error()
+	}
+}
+
+func Test_NewLineEndlineSpace2(t *testing.T) {
+	html1 := "<body>\n        \n<h1>\n\t\t Index</h1>\n"
+
+	html2 := parseAndSerializeEndline(html1, true)
+	html1 = strings.ReplaceAll(html2, "\n", "\\n")
 	html2 = strings.ReplaceAll(html2, "\n", "\\n")
 	if html1 != html2 {
 
