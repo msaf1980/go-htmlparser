@@ -149,3 +149,17 @@ func hasContent(text string) bool {
 	}
 	return false
 }
+
+// indexContent return index of any character that's not a whitespace or control character
+func indexContent(text string) int {
+	if len(text) == 0 {
+		return -1
+	}
+
+	for i, r := range text {
+		if !unicode.IsSpace(r) && !unicode.IsControl(r) {
+			return i
+		}
+	}
+	return -1
+}

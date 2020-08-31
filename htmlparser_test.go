@@ -370,6 +370,37 @@ func Test_NewLineEndlinePreserve(t *testing.T) {
 	}
 }
 
+func Test_NewLineEndlineSpace(t *testing.T) {
+	html1 := "<html>\n <head>\n </head>\n</html>"
+	html2 := parseAndSerializeEndline(html1, true)
+	html1 = "<html>\\n <head>\\n </head>\\n</html>"
+	html2 = strings.ReplaceAll(html2, "\n", "\\n")
+	if html1 != html2 {
+
+		max := len(html1)
+		if max > len(html2) {
+			max = len(html2)
+		}
+		for i := 0; i < max; i++ {
+			if html1[i] != html2[i] {
+				i -= 20
+				if i < 0 {
+					i = 0
+				}
+				e := i + 30
+				if e > max {
+					e = max
+				}
+				t.Logf("Mismatch1: %v\n", html1[i:e])
+				t.Logf("Mismatch2: %v\n", html2[i:e])
+				break
+			}
+		}
+
+		t.Error()
+	}
+}
+
 func Test_Idempotent(t *testing.T) {
 	baseHtml := blogPost
 	html1 := parseAndSerialize(baseHtml)
@@ -405,6 +436,39 @@ func Test_Idempotent(t *testing.T) {
 	}
 }
 
+func Test_IdempotentEndline(t *testing.T) {
+	baseHtml := blogPost
+	html1 := parseAndSerializeEndline(baseHtml, false)
+	html2 := parseAndSerializeEndline(html1, false)
+	html3 := parseAndSerializeEndline(html2, false)
+
+	// Skip first idempotency compare
+	if html2 != html3 {
+
+		max := len(html1)
+		if max > len(html2) {
+			max = len(html2)
+		}
+		for i := 0; i < max; i++ {
+			if html1[i] != html2[i] {
+				i -= 20
+				if i < 0 {
+					i = 0
+				}
+				e := i + 30
+				if e > max {
+					e = max
+				}
+				t.Logf("Mismatch1: %v\n", html1[i:e])
+				t.Logf("Mismatch2: %v\n", html2[i:e])
+				break
+			}
+		}
+
+		t.Error()
+	}
+}
+
 func parseAndSerialize(origHtml string) string {
 	parser := NewParser(origHtml)
 
@@ -434,15 +498,21 @@ func parseAndSerializeEndline(origHtml string, preserveCRLFTab bool) string {
 	parser.ParseWithEndlines(func(text string, parent *HtmlElement) {
 		escaped := html.EscapeString(text)
 		n.WriteString(escaped)
-	}, func(parent *HtmlElement, isEmptyTag bool, endEndl bool) {
+	}, func(parent *HtmlElement, isEmptyTag bool, endEndl bool, spaces string) {
 		n.WriteString(parent.GetOpenTag(false, false))
 		if endEndl {
 			n.WriteRune('\n')
 		}
-	}, func(closeTag string, endEndl bool) {
+		if len(spaces) > 0 {
+			n.WriteString(spaces)
+		}
+	}, func(closeTag string, endEndl bool, spaces string) {
 		n.WriteString("</" + closeTag + ">")
 		if endEndl {
 			n.WriteRune('\n')
+		}
+		if len(spaces) > 0 {
+			n.WriteString(spaces)
 		}
 	})
 

@@ -5,6 +5,7 @@ import (
 	"html"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 	//"fmt"
 )
@@ -17,8 +18,8 @@ type TextCallback func(string, *HtmlElement)
 type ElementCallback func(*HtmlElement, bool)
 type EndElementCallback func(string)
 
-type ElementCallbackEndl func(*HtmlElement, bool, bool)
-type EndElementCallbackEndl func(string, bool)
+type ElementCallbackEndl func(*HtmlElement, bool, bool, string)
+type EndElementCallbackEndl func(string, bool, string)
 
 type HtmlParser struct {
 	OrigHtml  string
@@ -170,12 +171,12 @@ func (parser *HtmlParser) Stop() {
 	parser.stop = true
 }
 
-func (p *HtmlParser) tagEndl(last *int, len int) bool {
-	if len > *last && p.origRunes[*last] == '\n' {
-		n := *last + 1
-		if n == len {
+func (p *HtmlParser) tagEndl(last *int, len int) (bool, string) {
+	if len > *last {
+		n := *last
+		if n == len-1 && unicode.IsControl(p.origRunes[n]) {
 			*last++
-			return true
+			return true, ""
 		}
 		for n < len {
 			if p.origRunes[n] == '<' {
@@ -184,19 +185,44 @@ func (p *HtmlParser) tagEndl(last *int, len int) bool {
 			n++
 		}
 		if n >= len-3 || p.OrigHtml[n+1:n+3] == "!--" {
-			return false
+			// comment found
+			return false, ""
 		} else if n > *last+1 && hasContent(p.OrigHtml[*last:n]) {
-			return false
+			return false, ""
+		} else if n == *last {
+			return false, ""
 		}
 		*last++
-		return true
+		spaces := ""
+		if *last < len {
+			s := p.OrigHtml[*last:n]
+			i := indexContent(s)
+			if i == -1 {
+				// detect '\n \n' and strip to '\n'
+				n1 := strings.IndexRune(s, '\n')
+				if n1 != -1 {
+					n2 := strings.IndexRune(s[n1:], '\n')
+					if n2 != -1 {
+						return true, spaces
+					}
+				}
+				spaces = p.OrigHtml[*last:n]
+			} else {
+				spaces = p.OrigHtml[*last:i]
+			}
+			// if !hasContent(p.OrigHtml[*last:n]) {
+			// 	spaces = p.OrigHtml[*last:n]
+			// }
+		}
+		return true, spaces
 	}
-	return false
+	return false, ""
 }
 
 func (p *HtmlParser) callElement(parent *HtmlElement, isEmptyTag bool, withEndline bool, last *int, len int) {
 	if withEndline {
-		p.elementCallbackEndl(parent, isEmptyTag, p.tagEndl(last, len))
+		endEndl, spaces := p.tagEndl(last, len)
+		p.elementCallbackEndl(parent, isEmptyTag, endEndl, spaces)
 	} else {
 		p.elementCallback(parent, isEmptyTag)
 	}
@@ -204,7 +230,8 @@ func (p *HtmlParser) callElement(parent *HtmlElement, isEmptyTag bool, withEndli
 
 func (p *HtmlParser) callEndElement(closeTag string, withEndline bool, last *int, len int) {
 	if withEndline {
-		p.endElementCallbackEndl(closeTag, p.tagEndl(last, len))
+		endEndl, spaces := p.tagEndl(last, len)
+		p.endElementCallbackEndl(closeTag, endEndl, spaces)
 	} else {
 		p.endElementCallback(closeTag)
 	}
